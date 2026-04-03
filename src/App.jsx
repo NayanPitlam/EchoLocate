@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Viewer, Ion, Cartesian3, Cartesian2, Color, PointGraphics, Entity, LabelGraphics, ScreenSpaceEventHandler, ScreenSpaceEventType } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import './App.css';
 import { mockNews } from './services/mockNews';
+import LoginForm from './components/LoginForm';
+import Logout from './components/Logout';
 
 // Color mapping for news categories
 const categoryColorMap = {
@@ -127,6 +129,8 @@ const CESIUM_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTk1Y
 
 function App() {
   const cesiumContainer = useRef(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [showLoginForm, setShowLoginForm] = useState(false);
 
   useEffect(() => {
     if (cesiumContainer.current) {
@@ -192,8 +196,42 @@ function App() {
   }, []);
 
   return (
-    <div className="App">
-      <div ref={cesiumContainer} className="cesium-container" />
+    <div className="App" style={{ position: 'relative', width: '100%', height: '100vh' }}>
+      {isLoggedIn && <Logout onLogout={setIsLoggedIn} />}
+      
+      {!isLoggedIn && !showLoginForm && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+          backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 50, color: 'white'
+        }}>
+          <h2>Please Log In to View Live News</h2>
+          <button 
+            onClick={() => setShowLoginForm(true)} 
+            style={{ padding: '10px 20px', fontSize: '16px', marginTop: '10px', cursor: 'pointer' }}
+          >
+            Log In
+          </button>
+        </div>
+      )}
+
+      {!isLoggedIn && showLoginForm && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
+          display: 'flex', alignItems: 'center', justifyContent: 'center', 
+          backgroundColor: 'rgba(0, 0, 0, 0.4)', 
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          zIndex: 100
+        }}>
+          <LoginForm onLogin={(status) => {
+            setIsLoggedIn(status);
+            if(status) setShowLoginForm(false);
+          }} />
+        </div>
+      )}
+
+      <div ref={cesiumContainer} className="cesium-container" style={{ width: '100%', height: '100%' }} />
     </div>
   );
 }

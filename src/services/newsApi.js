@@ -67,20 +67,32 @@ export async function fetchAndProcessNews(country = 'us') {
 
       if (coordinates) {
         processedNews.push({
-          id: article.url, // URL is a good unique ID
-          headline: article.title,
-          summary: article.description || 'No summary available.',
-          sourceUrl: article.url,
-          imageUrl: article.urlToImage || 'https://example.com/images/default.jpg',
-          coordinates,
+          "type": "Feature",
+          "geometry": {
+            "type": "Point",
+            "coordinates": [coordinates.longitude, coordinates.latitude]
+          },
+          "properties": {
+            "id": article.url, // URL is a good unique ID
+            "headline": article.title,
+            "summary": article.description || 'No summary available.',
+            "sourceUrl": article.url,
+            "imageUrl": article.urlToImage || 'https://example.com/images/default.jpg'
+          }
         });
       }
     }
 
-    return processedNews;
+    return {
+      "type": "FeatureCollection",
+      "features": processedNews
+    };
   } catch (error) {
     console.error(`Error fetching news for ${country}:`, error.message);
-    return [];
+    return {
+      "type": "FeatureCollection",
+      "features": []
+    };
   }
 }
 

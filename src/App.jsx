@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Viewer, Ion, Cartesian3, Cartesian2, Color, PointGraphics, Entity, LabelGraphics } from 'cesium';
+import { Viewer, Ion, Cartesian3, Cartesian2, Color, PointGraphics, Entity, LabelGraphics, ScreenSpaceEventHandler, ScreenSpaceEventType } from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import './App.css';
 import { mockNews } from './services/mockNews';
@@ -26,6 +26,35 @@ function getCategoryColor(category) {
 }
 
 /**
+ * Detect and apply jitter to duplicate or very close coordinates
+ * @param {Array<Array<number>>} coordinatesList - Array of [longitude, latitude] pairs
+ * @param {number} toleranceDegrees - Distance threshold to consider coords as duplicates (default: 0.01 degrees ≈ 1km)
+ * @returns {Array<Array<number>>} Jittered coordinates
+ */
+function jitterDuplicateCoordinates(coordinatesList, toleranceDegrees = 0.01) {
+  const jittered = coordinatesList.map(coords => [...coords]);
+  const maxJitter = toleranceDegrees * 0.5; // Max offset per coordinate
+  
+  for (let i = 0; i < jittered.length; i++) {
+    for (let j = i + 1; j < jittered.length; j++) {
+      const [lon1, lat1] = jittered[i];
+      const [lon2, lat2] = jittered[j];
+      
+      // Calculate distance between coordinates
+      const distance = Math.sqrt((lon1 - lon2) ** 2 + (lat1 - lat2) ** 2);
+      
+      if (distance < toleranceDegrees) {
+        // Apply random jitter to the second coordinate
+        jittered[j][0] += (Math.random() - 0.5) * maxJitter;
+        jittered[j][1] += (Math.random() - 0.5) * maxJitter;
+      }
+    }
+  }
+  
+  return jittered;
+}
+
+/**
  * Add news data as Point entities to the Cesium viewer
  * @param {Viewer} viewer - Cesium Viewer instance
  * @param {Object} geoJsonData - GeoJSON FeatureCollection
@@ -36,7 +65,15 @@ function addNewsPointsToViewer(viewer, geoJsonData) {
     return;
   }
 
-  geoJsonData.features.forEach((feature) => {
+  // Extract all coordinates for jitter detection
+  const allCoordinates = geoJsonData.features.map(feature => 
+    feature.geometry.coordinates
+  );
+
+  // Apply jitter to identical or very close coordinates
+  const jitteredCoords = jitterDuplicateCoordinates(allCoordinates);
+
+  geoJsonData.features.forEach((feature, index) => {
     const { geometry, properties } = feature;
     
     if (geometry.type !== 'Point') {
@@ -44,7 +81,8 @@ function addNewsPointsToViewer(viewer, geoJsonData) {
       return;
     }
 
-    const [longitude, latitude] = geometry.coordinates;
+    // Use jittered coordinates instead of original
+    const [longitude, latitude] = jitteredCoords[index];
     const { headline, summary, category, imageUrl } = properties;
 
     // Create point entity
@@ -104,7 +142,47 @@ function App() {
       // Add news data points to the globe
       addNewsPointsToViewer(viewer, mockNews);
 
+      // Add click handler for news points
+      let isAnimating = false;
+      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+      
+      handler.setInputAction((click) => {
+        // Prevent multiple clicks during animation
+        if (isAnimating) return;
+
+        const pickedObject = viewer.scene.pick(click.position);
+
+        if (pickedObject && pickedObject.id && pickedObject.id.properties) {
+          const newsData = pickedObject.id.properties;
+          console.log('Clicked News Object:', {
+            headline: newsData.headline,
+            summary: newsData.summary,
+            category: newsData.category,
+            sourceUrl: newsData.sourceUrl,
+            imageUrl: newsData.imageUrl,
+            coordinates: [newsData.properties?.coordinates?.longitude || newsData.geometry?.coordinates[0], 
+                         newsData.properties?.coordinates?.latitude || newsData.geometry?.coordinates[1]],
+          });
+
+          // Mark animation as in progress
+          isAnimating = true;
+
+          // Fly camera to clicked entity
+          viewer.camera.flyTo({
+            destination: pickedObject.id.position,
+            duration: 1.5,
+            offset: new Cartesian3(0, 0, 50000), // Zoom in 50km above
+            complete: () => {
+              // Re-enable interactions after animation completes
+              isAnimating = false;
+              viewer.scene.requestRender();
+            },
+          });
+        }
+      }, ScreenSpaceEventType.LEFT_CLICK);
+
       return () => {
+        handler.destroy();
         if (!viewer.isDestroyed()) {
           viewer.destroy();
         }

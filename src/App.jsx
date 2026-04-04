@@ -4,7 +4,7 @@ import 'cesium/Build/Cesium/Widgets/widgets.css';
 import './App.css';
 import { mockNews } from './services/mockNews';
 import LoginForm from './components/LoginForm';
-import Logout from './components/Logout';
+import Header from './components/Header';
 
 // Color mapping for news categories
 const categoryColorMap = {
@@ -130,10 +130,10 @@ const CESIUM_ION_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZTk1Y
 function App() {
   const cesiumContainer = useRef(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
 
   useEffect(() => {
-    if (cesiumContainer.current) {
+    if (isLoggedIn && cesiumContainer.current) {
       Ion.defaultAccessToken = CESIUM_ION_TOKEN;
       
       // Create viewer with default imagery (Bing Maps via Ion)
@@ -193,29 +193,24 @@ function App() {
       };
     }
     return undefined;
-  }, []);
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showLegend && !e.target.closest('.legend-toggle-btn') && !e.target.closest('.legend-dropdown')) {
+        setShowLegend(false);
+      }
+    };
+
+    if (showLegend) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [showLegend]);
 
   return (
     <div className="App" style={{ position: 'relative', width: '100%', height: '100vh' }}>
-      {isLoggedIn && <Logout onLogout={setIsLoggedIn} />}
-      
-      {!isLoggedIn && !showLoginForm && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-          backgroundColor: 'rgba(0, 0, 0, 0.6)', zIndex: 50, color: 'white'
-        }}>
-          <h2>Please Log In to View Live News</h2>
-          <button 
-            onClick={() => setShowLoginForm(true)} 
-            style={{ padding: '10px 20px', fontSize: '16px', marginTop: '10px', cursor: 'pointer' }}
-          >
-            Log In
-          </button>
-        </div>
-      )}
-
-      {!isLoggedIn && showLoginForm && (
+      {!isLoggedIn ? (
         <div style={{
           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
           display: 'flex', alignItems: 'center', justifyContent: 'center', 
@@ -224,14 +219,68 @@ function App() {
           WebkitBackdropFilter: 'blur(10px)',
           zIndex: 100
         }}>
-          <LoginForm onLogin={(status) => {
-            setIsLoggedIn(status);
-            if(status) setShowLoginForm(false);
-          }} />
+          <LoginForm onLogin={setIsLoggedIn} />
         </div>
+      ) : (
+        <>
+          <Header onLogout={setIsLoggedIn} />
+          <div ref={cesiumContainer} className="cesium-container" style={{ width: '100%', height: '100%' }} />
+          {showLegend && (
+            <div className="legend-dropdown">
+              <div className="legend-dropdown-header">News Categories</div>
+              <div className="legend-dropdown-content">
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#0000FF' }}></span>
+                  <span>Technology</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#00FF00' }}></span>
+                  <span>Environment</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#FFFF00' }}></span>
+                  <span>Sports</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#FF7F00' }}></span>
+                  <span>History</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#FF0000' }}></span>
+                  <span>Politics</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#A020F0' }}></span>
+                  <span>Business</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#FF00FF' }}></span>
+                  <span>Entertainment</span>
+                </div>
+                <div className="legend-dropdown-item">
+                  <span className="legend-color" style={{ backgroundColor: '#00FFFF' }}></span>
+                  <span>Science</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <footer className="app-footer">
+            <div className="footer-content">
+              <div className="footer-branding">
+                <span className="footer-title">EchoLocate™</span>
+                <span className="footer-subtitle">Explore global events with immersive news mapping.</span>
+              </div>
+              <div className="footer-links">
+                <span>© 2026 EchoLocate</span>
+                <span>Built for modern geo-news discovery</span>
+              </div>
+              <button className="legend-toggle-btn" onClick={() => setShowLegend(!showLegend)}>
+                Key
+              </button>
+            </div>
+          </footer>
+        </>
       )}
-
-      <div ref={cesiumContainer} className="cesium-container" style={{ width: '100%', height: '100%' }} />
     </div>
   );
 }

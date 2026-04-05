@@ -7,6 +7,7 @@ const LoginForm = ({ onLogin }) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5001';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,7 +17,7 @@ const LoginForm = ({ onLogin }) => {
     try {
       if (mode === 'login') {
         // Login request
-        const response = await fetch('http://localhost:5000/login', {
+        const response = await fetch(`${API_BASE}/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -43,7 +44,7 @@ const LoginForm = ({ onLogin }) => {
           return;
         }
 
-        const response = await fetch('http://localhost:5000/register', {
+        const response = await fetch(`${API_BASE}/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -250,22 +251,6 @@ const LoginForm = ({ onLogin }) => {
           }}
         >
           {loading ? 'Processing...' : (mode === 'login' ? 'Login' : 'Register')}
-        </button>
-      </form>
-    </div>
-  );
-};
-
-export default LoginForm;
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#004494'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#0056b3'}
-        >
-          Log In
         </button>
       </form>
     </div>
